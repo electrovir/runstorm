@@ -1,6 +1,6 @@
 {
     "name": "runstorm",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Easily run multiple commands in parallel threads.",
     "keywords": [
         "parallel",
