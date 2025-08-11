@@ -1,6 +1,6 @@
 {
     "name": "runstorm",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "description": "Easily run multiple commands in parallel threads.",
     "keywords": [
         "parallel",
@@ -27,13 +27,14 @@
     "main": "src/index.ts",
     "module": "src/index.ts",
     "types": "src/index.ts",
+    "bin": "dist/cli/cli.script.js",
     "scripts": {
         "compile": "virmator compile",
         "docs": "virmator docs",
         "format": "virmator format",
         "lint": "virmator lint fix",
         "publish": "virmator publish npm run test:all",
-        "start": "tsx src/index.ts",
+        "start": "tsx src/manual-test.script.mock.ts",
         "test": "virmator test node",
         "test:all": "npm run compile && concurrently --colors --kill-others-on-fail -c auto --names tests,spelling,format,docs,deps,lint \"npm run test:coverage\" \"npm run test:spelling\" \"npm run test:format\" \"npm run test:docs\" \"npm run test:deps\" \"npm run test:lint\"",
         "test:coverage": "npm run test coverage",
@@ -45,14 +46,17 @@
         "test:update": "npm run test update"
     },
     "dependencies": {
-        "@augment-vir/assert": "^31.32.0",
-        "@augment-vir/common": "^31.32.0",
-        "@augment-vir/node": "^31.32.0",
+        "@augment-vir/assert": "^31.32.2",
+        "@augment-vir/common": "^31.32.2",
+        "@augment-vir/node": "^31.32.2",
+        "ansi-styles": "^6.2.1",
+        "cli-vir": "^0.1.0",
         "object-shape-tester": "^5.3.0",
+        "type-fest": "^4.41.0",
         "typed-event-target": "^4.1.0"
     },
     "devDependencies": {
-        "@augment-vir/test": "^31.32.0",
+        "@augment-vir/test": "^31.32.2",
         "@eslint/eslintrc": "^3.3.1",
         "@eslint/js": "^9.33.0",
         "@stylistic/eslint-plugin": "^5.2.3",
@@ -83,7 +87,7 @@
         "prettier-plugin-packagejson": "^2.5.19",
         "prettier-plugin-sort-json": "^4.1.1",
         "prettier-plugin-toml": "^2.0.6",
-        "typedoc": "^0.28.9",
+        "typedoc": "^0.28.10",
         "typescript": "^5.9.2",
         "typescript-eslint": "^8.39.0",
         "virmator": "^13.16.1"

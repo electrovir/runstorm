@@ -6,11 +6,16 @@ import {ShellWorker} from './shell-worker.js';
 
 describe(ShellWorker.name, () => {
     it('completes a worker', async () => {
-        assert.deepEquals(await ShellWorker.completeWorker('echo "hi"; echo "hi";'), {
+        assert.deepEquals(await ShellWorker.completeWorker('echo "hi"; echo "hi" >&2;'), {
             exitCode: 0,
-            stderr: '',
-            stdout: 'hi\nhi\n',
+            stderr: 'hi\n',
+            stdout: 'hi\n',
             errors: [],
+        });
+    });
+    it('hooks up to the console', async () => {
+        await ShellWorker.completeWorker('echo "hi"; echo "hi" >&2;', {
+            hookUpToConsole: true,
         });
     });
     it('combines env', async () => {
@@ -61,6 +66,7 @@ describe(ShellWorker.name, () => {
 
             await waitUntil.isLengthExactly(1, () => worker.errors);
         } finally {
+            await worker.destroy();
             await worker.destroy();
         }
     });

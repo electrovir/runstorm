@@ -32,7 +32,10 @@ import {
  *
  * @category Event
  */
-export class WorkerExitEvent extends defineTypedCustomEvent<{exitCode: number}>()('worker-exit') {}
+export class WorkerExitEvent extends defineTypedCustomEvent<{
+    exitCode: number;
+    wasTerminated: boolean;
+}>()('worker-exit') {}
 /**
  * Emitted from a {@link ShellWorker} when its underlying Worker produces stderr output.
  *
@@ -88,6 +91,8 @@ export type ShellWorkerOptions = Omit<WorkerCommand, 'command'> &
     PartialWithUndefined<{
         /** Optionally specify your own worker file path. */
         workerFilePath: string;
+        /** Directly log all outputs without requiring listeners. */
+        hookUpToConsole: boolean;
         /** Attach {@link ShellWorker} listeners immediately. */
         listeners: ShellWorkerListeners;
     }>;
@@ -145,13 +150,15 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
     public readonly hasStarted: boolean = false;
 
     /** All stdout combined. This will continue to be updated until the worker thread has exited. */
-    public stdout: string[] = [];
+    public readonly stdout: string[] = [];
     /** All stderr combined. This will continue to be updated until the worker thread has exited. */
-    public stderr: string[] = [];
+    public readonly stderr: string[] = [];
     /** This will only be populated once the worker thread has exited or crashed. */
-    public exitCode: number | undefined;
+    public readonly exitCode: number | undefined;
+    /** `true` if this instance has been destroyed. */
+    public readonly isDestroyed = false as boolean;
     /** All errors from the worker thread are accumulated here. */
-    public errors: Error[] = [];
+    public readonly errors: Error[] = [];
 
     protected constructor(
         /** The command that the shell worker thread is to execute. */
@@ -235,6 +242,7 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
             });
 
             await exitDispatched.promise;
+            await waitUntil.isDefined(() => this.exitCode);
         }
         const exitCode = assertWrap.isDefined(this.exitCode);
 
@@ -251,35 +259,18 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
      * exiting a worker.
      */
     public override async destroy() {
-        const exitDispatched = new DeferredPromise();
-        // eslint-disable-next-line @typescript-eslint/no-deprecated
-        this.worker.once('exit', () => {
-            exitDispatched.resolve();
-        });
+        if (this.isDestroyed) {
+            return;
+        }
+        makeWritable(this).isDestroyed = true;
         // eslint-disable-next-line @typescript-eslint/no-deprecated
         await this.worker.terminate();
-        await exitDispatched.promise;
+        await this.waitForExit();
         super.destroy();
     }
 
     /** Attaches all listeners to the underlying worker thread. */
     protected attachWorkerListeners() {
-        // eslint-disable-next-line @typescript-eslint/no-deprecated
-        this.worker.addListener('exit', (exitCode) => {
-            /** An exit code was already set internally. */
-            if (this.exitCode != undefined) {
-                return;
-            }
-
-            this.dispatch(
-                new WorkerExitEvent({
-                    detail: {
-                        exitCode,
-                    },
-                }),
-            );
-        });
-
         // eslint-disable-next-line @typescript-eslint/no-deprecated
         this.worker.addListener('message', async (message) => {
             try {
@@ -288,6 +279,10 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
                 if (message.type === FromWorkerMessageType.Starting) {
                     makeWritable(this).hasStarted = true;
                 } else if (message.type === FromWorkerMessageType.Stdout) {
+                    if (this.options.hookUpToConsole) {
+                        process.stdout.write(message.stdout);
+                    }
+
                     this.stdout.push(message.stdout);
                     this.dispatch(
                         new WorkerStdoutEvent({
@@ -297,6 +292,9 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
                         }),
                     );
                 } else if (message.type === FromWorkerMessageType.Stderr) {
+                    if (this.options.hookUpToConsole) {
+                        process.stderr.write(message.stderr);
+                    }
                     this.stderr.push(message.stderr);
                     this.dispatch(
                         new WorkerStderrEvent({
@@ -306,11 +304,18 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
                         }),
                     );
                 } else if (message.type === FromWorkerMessageType.Exit) {
-                    this.exitCode = message.exitCode;
+                    /* node:coverage ignore next 3: race condition guard that is unreliable to trigger */
+                    if (this.exitCode != undefined) {
+                        return;
+                    }
+
+                    makeWritable(this).exitCode = assertWrap.isDefined(message.exitCode);
+
                     this.dispatch(
                         new WorkerExitEvent({
                             detail: {
                                 exitCode: message.exitCode,
+                                wasTerminated: this.isDestroyed,
                             },
                         }),
                     );
@@ -330,6 +335,24 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
                 this.errors.push(ensureError(error));
                 log.error(error);
             }
+        });
+
+        // eslint-disable-next-line @typescript-eslint/no-deprecated
+        this.worker.addListener('exit', (exitCode) => {
+            /* node:coverage ignore next 3: race condition guard that is unreliable to trigger */
+            if (this.exitCode != undefined) {
+                return;
+            }
+            makeWritable(this).exitCode = exitCode;
+
+            this.dispatch(
+                new WorkerExitEvent({
+                    detail: {
+                        exitCode,
+                        wasTerminated: this.isDestroyed,
+                    },
+                }),
+            );
         });
     }
 }
