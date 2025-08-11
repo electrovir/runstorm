@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import {assert, check} from '@augment-vir/assert';
 import {type AnyObject, mapObjectValues, removeColor, selectFrom} from '@augment-vir/common';
 import {interpolationSafeWindowsPath, runShellCommand, type ShellOutput} from '@augment-vir/node';
