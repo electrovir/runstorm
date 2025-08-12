@@ -9,6 +9,7 @@ import {
     StringCase,
 } from '@augment-vir/common';
 import styles, {type CSPair, type ForegroundColorName} from 'ansi-styles';
+import {type SetOptional} from 'type-fest';
 
 /**
  * A finalized command to run for RunStorm.
@@ -36,30 +37,89 @@ export function createCommands(
     return filterMap(
         commandStrings,
         (command, index): Command | undefined => {
-            const commandName = commandNames[index] || command.split(' ', 1)[0];
+            const commandName = generateCommandName({
+                usedCommandNames,
+                givenName: commandNames[index],
+                command,
+            });
+
             if (!commandName) {
                 return undefined;
             }
 
-            const nameUsageCount = getOrSet(usedCommandNames, commandName, () => 1);
-            const commandNameWithCount = [
-                commandName,
-                nameUsageCount > 1 ? nameUsageCount : '',
-            ]
-                .filter(check.isTruthy)
-                .join(' ');
-            usedCommandNames[commandName] = nameUsageCount + 1;
-
             const colorKey: ColorKey = assertWrap.isDefined(
                 checkWrap.isKeyOf(commandColors[index] || '', allColorsByKey) ||
-                    colorKeys[index % colorKeys.length],
+                    allColorKeys[index % allColorKeys.length],
                 'failed to find color key',
             );
 
             return {
                 command,
-                name: commandNameWithCount,
+                name: commandName,
                 color: colorKey,
+            };
+        },
+        check.isTruthy,
+    );
+}
+
+function generateCommandName({
+    usedCommandNames,
+    givenName,
+    command,
+}: {
+    usedCommandNames: {
+        [CommandName in string]: number;
+    };
+    givenName: string | undefined;
+    command: string;
+}): string | undefined {
+    const commandName: string | undefined = givenName || command.split(' ', 1)[0];
+    if (!commandName) {
+        return undefined;
+    }
+
+    usedCommandNames[commandName] = getOrSet(usedCommandNames, commandName, () => 0) + 1;
+    const commandNameWithCount = [
+        commandName,
+        usedCommandNames[commandName] > 1 ? usedCommandNames[commandName] : '',
+    ]
+        .filter(check.isTruthy)
+        .join(' ');
+
+    return commandNameWithCount;
+}
+
+/**
+ * Converts partial command objects into full command objects.
+ *
+ * @category Internal
+ */
+export function sanitizeCommands(
+    commands: ReadonlyArray<Readonly<SetOptional<Command, 'color' | 'name'>>>,
+): Command[] {
+    const usedCommandNames: {[CommandName in string]: number} = {};
+
+    return filterMap(
+        commands,
+        (command, commandIndex): Command | undefined => {
+            const commandName = generateCommandName({
+                usedCommandNames,
+                givenName: command.name,
+                command: command.command,
+            });
+
+            if (!commandName) {
+                return undefined;
+            }
+
+            return {
+                color: assertWrap.isDefined(
+                    allColorKeys[commandIndex % allColorKeys.length],
+                    'failed to find color key',
+                ),
+                ...command,
+                name: commandName,
             };
         },
         check.isTruthy,
@@ -109,7 +169,7 @@ export const inverseColorKeys = basicColorKeys.map(
  *
  * @category Internal
  */
-export const colorKeys = [
+export const allColorKeys = [
     ...basicColorKeys,
     ...inverseColorKeys,
 ];
@@ -119,7 +179,25 @@ export const colorKeys = [
  *
  * @category Internal
  */
-export type ColorKey = ArrayElement<typeof colorKeys>;
+export type ColorKey = ArrayElement<typeof allColorKeys>;
+
+/**
+ * All supported color keys for logging.
+ *
+ * @category Internal
+ */
+export const ColorKey = arrayToObject(
+    allColorKeys,
+    (value) => {
+        return {
+            key: value,
+            value,
+        };
+    },
+    {
+        useRequired: true,
+    },
+) satisfies Record<ColorKey, string> as {[Key in ColorKey]: Key};
 
 const basicColors: Record<BasicColorKey, CSPair[]> = arrayToObject(
     basicColorKeys,

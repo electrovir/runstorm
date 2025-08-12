@@ -33,6 +33,8 @@ const sections: {header: string; only?: boolean; callback: () => MaybePromise<un
                         'echo "hi"; sleep 2; echo "hi again";',
                         'echo "bye"',
                     ],
+                    undefined,
+                    undefined,
                     {
                         killOn: KillOn.Success,
                     },
@@ -49,6 +51,8 @@ const sections: {header: string; only?: boolean; callback: () => MaybePromise<un
                         'sleep 10; echo "one";',
                         'echo "two"; exit 1;',
                     ],
+                    undefined,
+                    undefined,
                     {
                         killOn: KillOn.Failure,
                     },

@@ -1,6 +1,6 @@
 import {ArgValueType, FlagRequirement, parseArgs} from 'cli-vir';
 import {cpus} from 'node:os';
-import {colorKeys, createCommands} from '../run-commands/command.js';
+import {allColorKeys, createCommands} from '../run-commands/command.js';
 import {KillOn, type RunCommandOptions, runCommands} from '../run-commands/run-commands.js';
 
 /**
@@ -58,7 +58,7 @@ export async function runCli(
                 },
             },
             colors: {
-                description: `An ordered, comma separated list of colors for each command, used for logging purposes. Supported colors are: ${colorKeys.join(',')}`,
+                description: `An ordered, comma separated list of colors for each command, used for logging purposes. Supported colors are: ${allColorKeys.join(',')}`,
                 flag: {
                     valueRequirement: FlagRequirement.Required,
                 },

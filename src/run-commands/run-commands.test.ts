@@ -19,7 +19,7 @@ describe(runRawCommands.name, () => {
     ) {
         const logs = mapEnumToObject(LogOutputType, () => [] as string[]);
 
-        await runRawCommands(commands, {
+        await runRawCommands(commands, undefined, undefined, {
             loggers: mapEnumToObject(LogOutputType, (outputType) => {
                 return (output: string) => {
                     return logs[outputType].push(

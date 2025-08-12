@@ -1,5 +1,5 @@
 import {describe, itCases} from '@augment-vir/test';
-import {createCommands} from './command.js';
+import {ColorKey, createCommands, sanitizeCommands} from './command.js';
 
 describe(createCommands.name, () => {
     itCases(createCommands, [
@@ -16,6 +16,7 @@ describe(createCommands.name, () => {
                 ],
                 [],
             ],
+            only: true,
             expect: [
                 {
                     command: 'hi',
@@ -46,6 +47,38 @@ describe(createCommands.name, () => {
                     command: 'hi',
                     name: 'go',
                     color: 'red',
+                },
+            ],
+        },
+    ]);
+});
+
+describe(sanitizeCommands.name, () => {
+    itCases(sanitizeCommands, [
+        {
+            it: 'adds name and color',
+            input: [
+                {
+                    command: 'echo "hi"',
+                },
+                {
+                    command: 'echo "hi"',
+                    color: ColorKey.magenta,
+                },
+                {
+                    command: '',
+                },
+            ],
+            expect: [
+                {
+                    command: 'echo "hi"',
+                    color: ColorKey.red,
+                    name: 'echo',
+                },
+                {
+                    command: 'echo "hi"',
+                    color: ColorKey.magenta,
+                    name: 'echo 2',
                 },
             ],
         },

@@ -5,6 +5,7 @@ import {
     mapEnumToObject,
     type PartialWithUndefined,
 } from '@augment-vir/common';
+import {type SetOptional} from 'type-fest';
 import {ShellWorker} from '../shell-worker/shell-worker.js';
 import {
     createSummary,
@@ -12,7 +13,7 @@ import {
     type CommandLoggers,
     type Exits,
 } from './command-logging.js';
-import {createCommands, type Command} from './command.js';
+import {createCommands, sanitizeCommands, type ColorKey, type Command} from './command.js';
 
 /**
  * Options for the --kill-on flag.
@@ -59,9 +60,11 @@ export type RunCommandOptions = PartialWithUndefined<{
  */
 export async function runRawCommands(
     commands: ReadonlyArray<string>,
+    commandNames: ReadonlyArray<string> = [],
+    commandColors: ReadonlyArray<ColorKey> = [],
     options: Readonly<RunCommandOptions> = {},
 ) {
-    return await runCommands(createCommands(commands, [], []), options);
+    return await runCommands(createCommands(commands, commandNames, commandColors), options);
 }
 
 /**
@@ -71,9 +74,11 @@ export async function runRawCommands(
  * @returns The exits codes of each command in order.
  */
 export async function runCommands(
-    commands: ReadonlyArray<Readonly<Command>>,
+    commandInputs: ReadonlyArray<Readonly<SetOptional<Command, 'color' | 'name'>>>,
     options: Readonly<RunCommandOptions> = {},
 ): Promise<{exitCodes: Exits; highestExitCode: number}> {
+    const commands = sanitizeCommands(commandInputs);
+
     const maxConcurrency: number = Math.abs(options.maxConcurrency || 0) || Infinity;
     const exitCodes: Exits = [];
     let highestExitCode: number = 0;
