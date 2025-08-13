@@ -1,6 +1,6 @@
 {
     "name": "runstorm",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "description": "Easily run multiple commands in parallel threads.",
     "keywords": [
         "parallel",
@@ -36,7 +36,7 @@
         "publish": "virmator publish npm run test:all",
         "start": "tsx src/manual-test.script.mock.ts",
         "test": "virmator test node",
-        "test:all": "npm run compile && concurrently --colors --kill-others-on-fail -c auto --names tests,spelling,format,docs,deps,lint \"npm run test:coverage\" \"npm run test:spelling\" \"npm run test:format\" \"npm run test:docs\" \"npm run test:deps\" \"npm run test:lint\"",
+        "test:all": "npm run compile && concurrently --colors --kill-others-on-fail -c auto --names spelling,format,docs,deps,lint \"npm run test:spelling\" \"npm run test:format\" \"npm run test:docs\" \"npm run test:deps\" \"npm run test:lint\" && npm run test:coverage",
         "test:coverage": "npm run test coverage",
         "test:deps": "virmator deps check",
         "test:docs": "virmator docs check",

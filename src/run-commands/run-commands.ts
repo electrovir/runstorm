@@ -123,7 +123,7 @@ export async function runCommands(
         };
 
         const worker = ShellWorker.createWorker(command.command, {
-            cwd: options.cwd,
+            cwd: command.cwd || options.cwd,
             env: options.env,
             shell: options.shell,
             workerFilePath: options.workerFilePath,

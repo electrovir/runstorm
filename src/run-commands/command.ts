@@ -5,6 +5,7 @@ import {
     filterMap,
     type FirstLetterCase,
     getOrSet,
+    type PartialWithUndefined,
     setFirstLetterCasing,
     StringCase,
 } from '@augment-vir/common';
@@ -20,7 +21,9 @@ export type Command = {
     command: string;
     name: string;
     color: ColorKey;
-};
+} & PartialWithUndefined<{
+    cwd?: string;
+}>;
 
 /**
  * Convert raw CLI input strings into {@link Command} outputs.

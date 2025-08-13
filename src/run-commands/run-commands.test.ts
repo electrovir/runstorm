@@ -5,10 +5,12 @@ import {
     type PartialWithUndefined,
 } from '@augment-vir/common';
 import {describe, it, itCases} from '@augment-vir/test';
-import {KillOn, runRawCommands, type RunCommandOptions} from './run-commands.js';
+import {repoDirPath, srcDirPath} from '../repo-paths.mock.js';
+import {ColorKey, type Command} from './command.js';
+import {KillOn, runCommands, runRawCommands, type RunCommandOptions} from './run-commands.js';
 
 describe(runRawCommands.name, () => {
-    async function testCommands(
+    async function testRawCommands(
         commands: ReadonlyArray<string>,
         options: Readonly<
             RunCommandOptions &
@@ -33,7 +35,7 @@ describe(runRawCommands.name, () => {
         return logs;
     }
 
-    itCases(testCommands, [
+    itCases(testRawCommands, [
         {
             it: 'completes',
             inputs: [
@@ -194,4 +196,63 @@ describe(runRawCommands.name, () => {
     it('runs with default loggers', async () => {
         await runRawCommands(['echo "hi"']);
     });
+});
+
+describe(runCommands.name, () => {
+    async function testCommands(
+        commands: ReadonlyArray<Readonly<Command>>,
+        options: Readonly<
+            RunCommandOptions &
+                PartialWithUndefined<{
+                    keepColor: boolean;
+                }>
+        > = {},
+    ) {
+        const logs = mapEnumToObject(LogOutputType, () => [] as string[]);
+
+        await runCommands(commands, {
+            loggers: mapEnumToObject(LogOutputType, (outputType) => {
+                return (output: string) => {
+                    return logs[outputType].push(
+                        (options.keepColor ? output : removeColor(output)).trim(),
+                    );
+                };
+            }),
+            ...options,
+        });
+
+        return logs;
+    }
+
+    itCases(testCommands, [
+        {
+            it: 'uses individual command CWD',
+            inputs: [
+                [
+                    {
+                        command: 'pwd',
+                        color: ColorKey.blue,
+                        name: 'first',
+                        cwd: repoDirPath,
+                    },
+                    {
+                        command: 'sleep 2 && pwd',
+                        color: ColorKey.red,
+                        name: 'second',
+                        cwd: srcDirPath,
+                    },
+                ],
+            ],
+            expect: {
+                stderr: [],
+                stdout: [
+                    `[first] ${repoDirPath}`,
+                    '[first] exited with exit code 0.',
+                    `[second] ${srcDirPath}`,
+                    '[second] exited with exit code 0.',
+                    'RunStorm Summary:\n [first] succeeded.\n[second] succeeded.',
+                ],
+            },
+        },
+    ]);
 });
