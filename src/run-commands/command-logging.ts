@@ -102,7 +102,12 @@ function getNewColors(output: string, previousColors: ReadonlyArray<string>): st
     return currentColors;
 }
 
-function createCommandLogPrefix(
+/**
+ * Creates a the log prefix for the given command.
+ *
+ * @category Internal
+ */
+export function createCommandLogPrefix(
     command: Readonly<
         SelectFrom<
             Command,
