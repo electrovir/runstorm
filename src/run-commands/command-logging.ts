@@ -148,7 +148,7 @@ export function wrapInColor(text: string, color: ColorKey): string {
  *
  * @category Internal
  */
-export type Exits = (number | 'cancelled')[];
+export type Exit = number | 'cancelled';
 
 /**
  * Creates the RunStorm summary output string.
@@ -167,7 +167,7 @@ export function createSummary(
             >
         >
     >,
-    exits: Readonly<Exits>,
+    exits: ReadonlyArray<Exit>,
 ): string {
     const longestCommandNameLength = commands
         .map((command) => command.name)

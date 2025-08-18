@@ -1,5 +1,6 @@
 import {check} from '@augment-vir/assert';
 import {
+    awaitedBlockingMap,
     DeferredPromise,
     LogOutputType,
     mapEnumToObject,
@@ -12,7 +13,7 @@ import {
     createSummary,
     handleCommandLog,
     type CommandLoggers,
-    type Exits,
+    type Exit,
 } from './command-logging.js';
 import {createCommands, sanitizeCommands, type Command} from './command.js';
 
@@ -69,6 +70,62 @@ export async function runRawCommands(
 }
 
 /**
+ * Runs a matrix of commands. Each row (top level array entry) is executed all at once, and the
+ * whole thing aborts if any fail.
+ *
+ * @category Main
+ * @returns The exits codes of each command in order.
+ */
+export async function runCommandMatrix(
+    commandInputsMatrix: ReadonlyArray<
+        ReadonlyArray<Readonly<SetOptional<Command, 'color' | 'name'>>>
+    >,
+    options: Readonly<RunCommandOptions> = {},
+): Promise<{
+    exitCodes: Exit[][];
+    highestExitCode: number;
+    terminated: boolean;
+}> {
+    let highestExitCode: number = 0;
+    let isTerminated = false;
+    const loggers = mapEnumToObject(LogOutputType, (outputType) => {
+        return (
+            options.loggers?.[outputType] ||
+            ((output: string) => process[outputType].write(output + '\n'))
+        );
+    });
+
+    const commands = sanitizeCommands(commandInputsMatrix.flat());
+
+    const exitCodes: Exit[][] = await awaitedBlockingMap(
+        commandInputsMatrix,
+        async (commandInputs): Promise<Exit[]> => {
+            if (isTerminated) {
+                return commandInputs.map(() => 'cancelled');
+            }
+
+            const results = await runCommands(commandInputs, {
+                ...options,
+                disableSummary: true,
+            });
+            isTerminated = results.terminated;
+            highestExitCode = Math.max(results.highestExitCode, highestExitCode);
+            return results.exitCodes;
+        },
+    );
+
+    if (!options.disableSummary) {
+        loggers.stdout('\n\n' + createSummary(commands, exitCodes.flat()) + '\n\n');
+    }
+
+    return {
+        highestExitCode,
+        exitCodes,
+        terminated: isTerminated,
+    };
+}
+
+/**
  * Run all given raw commands within RunStorm.
  *
  * @category Main
@@ -77,13 +134,17 @@ export async function runRawCommands(
 export async function runCommands(
     commandInputs: ReadonlyArray<Readonly<SetOptional<Command, 'color' | 'name'>>>,
     options: Readonly<RunCommandOptions> = {},
-): Promise<{exitCodes: Exits; highestExitCode: number}> {
+): Promise<{
+    exitCodes: Exit[];
+    highestExitCode: number;
+    terminated: boolean;
+}> {
     const commands = sanitizeCommands(commandInputs);
 
     const maxConcurrency: number = Math.abs(options.maxConcurrency || 0) || Infinity;
-    const exitCodes: Exits = [];
+    const exitCodes: Exit[] = [];
     let highestExitCode: number = 0;
-    let areAllTerminated = false;
+    let areAllTerminated = false as boolean;
     const loggers = mapEnumToObject(LogOutputType, (outputType) => {
         return (
             options.loggers?.[outputType] ||
@@ -217,5 +278,6 @@ export async function runCommands(
     return {
         exitCodes,
         highestExitCode,
+        terminated: areAllTerminated,
     };
 }
