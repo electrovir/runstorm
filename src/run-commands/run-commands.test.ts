@@ -6,7 +6,8 @@ import {
 } from '@augment-vir/common';
 import {describe, it, itCases} from '@augment-vir/test';
 import {repoDirPath, srcDirPath} from '../repo-paths.mock.js';
-import {ColorKey, type Command} from './command.js';
+import {ColorKey} from './color-key.js';
+import {type Command} from './command.js';
 import {KillOn, runCommands, runRawCommands, type RunCommandOptions} from './run-commands.js';
 
 describe(runRawCommands.name, () => {
@@ -154,12 +155,12 @@ describe(runRawCommands.name, () => {
             expect: {
                 stderr: [],
                 stdout: [
-                    '\x1b[31m[echo]\x1b[0m \x1b[34m one\x1b[0m',
-                    '\x1b[31m[echo]\x1b[0m \x1b[34m two\x1b[0m\x1b[0m',
-                    '\x1b[31m[echo]\x1b[0m three\x1b[0m',
-                    '\x1b[31m[echo]\x1b[0m exited with exit code 0.\x1b[0m',
+                    '\x1b[31m[echo]\x1b[39m \x1b[34m one\x1b[0m',
+                    '\x1b[31m[echo]\x1b[39m \x1b[34m two\x1b[0m\x1b[0m',
+                    '\x1b[31m[echo]\x1b[39m three\x1b[0m',
+                    '\x1b[31m[echo]\x1b[39m exited with exit code 0.\x1b[0m',
                     // cspell:word msucceeded
-                    '\x1b[1mRunStorm Summary:\x1b[0m\n\x1b[31m[echo]\x1b[0m \x1b[32m\x1b[1msucceeded.\x1b[0m',
+                    '\x1b[1mRunStorm Summary:\x1b[0m\n\x1b[31m[echo]\x1b[39m \x1b[32m\x1b[1msucceeded.\x1b[0m',
                 ],
             },
         },

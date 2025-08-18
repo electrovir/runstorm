@@ -7,13 +7,14 @@ import {
 } from '@augment-vir/common';
 import {type SetOptional} from 'type-fest';
 import {ShellWorker} from '../shell-worker/shell-worker.js';
+import {type ColorKey} from './color-key.js';
 import {
     createSummary,
     handleCommandLog,
     type CommandLoggers,
     type Exits,
 } from './command-logging.js';
-import {createCommands, sanitizeCommands, type ColorKey, type Command} from './command.js';
+import {createCommands, sanitizeCommands, type Command} from './command.js';
 
 /**
  * Options for the --kill-on flag.

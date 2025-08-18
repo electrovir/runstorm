@@ -1,6 +1,7 @@
 import {removeSuffix, safeMatch, type LogOutputType, type SelectFrom} from '@augment-vir/common';
 import styles from 'ansi-styles';
-import {allColorsByKey, type Command} from './command.js';
+import {allColorsByKey, type ColorKey} from './color-key.js';
+import {type Command} from './command.js';
 import {type RunCommandOptions} from './run-commands.js';
 
 /**
@@ -118,13 +119,27 @@ export function createCommandLogPrefix(
         >
     >,
 ) {
-    return [
-        ...allColorsByKey[command.color].map((color) => color.open),
+    const commandName = [
         '[',
         command.name,
         ']',
-        styles.reset.open,
-        ' ',
+    ].join('');
+
+    return wrapInColor(commandName, command.color) + ' ';
+}
+
+/**
+ * Wrap the given text in the given color key.
+ *
+ * @category Internal
+ */
+export function wrapInColor(text: string, color: ColorKey): string {
+    const colorPairs = allColorsByKey[color];
+
+    return [
+        ...colorPairs.map((color) => color.open),
+        text,
+        ...colorPairs.map((color) => color.close),
     ].join('');
 }
 

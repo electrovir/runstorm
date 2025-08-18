@@ -1,5 +1,6 @@
 import {describe, itCases} from '@augment-vir/test';
-import {ColorKey, createCommands, sanitizeCommands} from './command.js';
+import {ColorKey} from './color-key.js';
+import {createCommands, sanitizeCommands} from './command.js';
 
 describe(createCommands.name, () => {
     itCases(createCommands, [

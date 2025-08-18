@@ -1,6 +1,7 @@
 import {ArgValueType, FlagRequirement, parseArgs} from 'cli-vir';
 import {cpus} from 'node:os';
-import {allColorKeys, createCommands} from '../run-commands/command.js';
+import {allColorKeys} from '../run-commands/color-key.js';
+import {createCommands} from '../run-commands/command.js';
 import {KillOn, type RunCommandOptions, runCommands} from '../run-commands/run-commands.js';
 
 /**

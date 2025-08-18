@@ -1,4 +1,5 @@
 export * from './cli/cli.js';
+export * from './run-commands/color-key.js';
 export * from './run-commands/command-logging.js';
 export * from './run-commands/command.js';
 export * from './run-commands/run-commands.js';
