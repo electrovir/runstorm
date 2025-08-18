@@ -50,11 +50,9 @@ export function createCommands(
                 return undefined;
             }
 
-            const colorKey: ColorKey = assertWrap.isDefined(
+            const colorKey: ColorKey =
                 checkWrap.isKeyOf(commandColors[index] || '', allColorsByKey) ||
-                    allColorKeys[index % allColorKeys.length],
-                'failed to find color key',
-            );
+                getColorKeyByIndex(index);
 
             return {
                 command,
@@ -117,10 +115,7 @@ export function sanitizeCommands(
             }
 
             return {
-                color: assertWrap.isDefined(
-                    allColorKeys[commandIndex % allColorKeys.length],
-                    'failed to find color key',
-                ),
+                color: getColorKeyByIndex(commandIndex),
                 ...command,
                 name: commandName,
             };
@@ -141,8 +136,6 @@ export const basicColorKeys = [
     'cyan',
     'blue',
     'magenta',
-    'black',
-    'white',
 ] as const satisfies ForegroundColorName[];
 
 /**
@@ -166,6 +159,19 @@ export type InverseColorKey = `bg${FirstLetterCase<StringCase.Upper, BasicColorK
 export const inverseColorKeys = basicColorKeys.map(
     (colorKey) => `bg${setFirstLetterCasing(colorKey, StringCase.Upper)}`,
 ) satisfies string[] as InverseColorKey[];
+
+/**
+ * Gets the color key for the given command index. Colors are sequentially iterated through based on
+ * the given index.
+ *
+ * @category Internal
+ */
+export function getColorKeyByIndex(index: number): ColorKey {
+    return assertWrap.isDefined(
+        allColorKeys[index % allColorKeys.length],
+        `Somehow failed to find color key by index '${index}'.`,
+    );
+}
 
 /**
  * All supported color keys for logging.
