@@ -1,4 +1,11 @@
-import {classShape, defineShape, exact, indexedKeys, optional, or} from 'object-shape-tester';
+import {
+    classShape,
+    defineShape,
+    exactShape,
+    optionalShape,
+    recordShape,
+    unionShape,
+} from 'object-shape-tester';
 
 /**
  * Shape definition for {@link WorkerCommand}.
@@ -13,23 +20,22 @@ export const workerCommandShape = defineShape({
      *
      * @default process.cwd()
      */
-    cwd: optional(or(undefined, '')),
+    cwd: optionalShape(unionShape(undefined, '')),
     /**
      * The shell to use when executing the command.
      *
      * @default 'bash'
      */
-    shell: optional(or(undefined, '')),
+    shell: optionalShape(unionShape(undefined, '')),
     /** Keep the worker alive even after the shell command has exited. */
-    keepAlive: optional(or(undefined, false)),
+    keepAlive: optionalShape(unionShape(undefined, false)),
     /** Extra env values to append to `process.env`. */
-    env: optional(
-        or(
+    env: optionalShape(
+        unionShape(
             undefined,
-            indexedKeys({
+            recordShape({
                 keys: '',
                 values: '',
-                required: false,
             }),
         ),
     ),
@@ -61,24 +67,24 @@ export enum FromWorkerMessageType {
  * @category Internal
  */
 export const fromWorkerMessageShape = defineShape(
-    or(
+    unionShape(
         {
-            type: exact(FromWorkerMessageType.Starting),
+            type: exactShape(FromWorkerMessageType.Starting),
         },
         {
-            type: exact(FromWorkerMessageType.Error),
+            type: exactShape(FromWorkerMessageType.Error),
             error: classShape(Error),
         },
         {
-            type: exact(FromWorkerMessageType.Exit),
+            type: exactShape(FromWorkerMessageType.Exit),
             exitCode: -1,
         },
         {
-            type: exact(FromWorkerMessageType.Stderr),
+            type: exactShape(FromWorkerMessageType.Stderr),
             stderr: '',
         },
         {
-            type: exact(FromWorkerMessageType.Stdout),
+            type: exactShape(FromWorkerMessageType.Stdout),
             stdout: '',
         },
     ),
@@ -106,8 +112,8 @@ export enum ToWorkerMessageType {
  * @category Internal
  */
 export const toWorkerMessageShape = defineShape(
-    or({
-        type: exact(ToWorkerMessageType.Start),
+    unionShape({
+        type: exactShape(ToWorkerMessageType.Start),
         command: workerCommandShape,
     }),
 );
