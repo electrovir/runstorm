@@ -1,5 +1,6 @@
 import {assert} from '@augment-vir/assert';
 import {
+    DeferredPromise,
     LogOutputType,
     mapEnumToObject,
     removeColor,
@@ -300,15 +301,35 @@ describe(runCommandMatrix.name, () => {
             inputs: [
                 [
                     [
-                        {command: 'sleep 1; echo "one-a"', name: 'row1a', color: ColorKey.blue},
-                        {command: 'sleep 2; echo "one-b"', name: 'row1b', color: ColorKey.red},
+                        {
+                            command: 'sleep 1; echo "one-a"',
+                            name: 'row1a',
+                            color: ColorKey.blue,
+                        },
+                        {
+                            command: 'sleep 2; echo "one-b"',
+                            name: 'row1b',
+                            color: ColorKey.red,
+                        },
                     ],
                     [
-                        {command: 'sleep 1; echo "two-a"', name: 'row2a', color: ColorKey.green},
-                        {command: 'sleep 2; echo "two-b"', name: 'row2b', color: ColorKey.yellow},
+                        {
+                            command: 'sleep 1; echo "two-a"',
+                            name: 'row2a',
+                            color: ColorKey.green,
+                        },
+                        {
+                            command: 'sleep 2; echo "two-b"',
+                            name: 'row2b',
+                            color: ColorKey.yellow,
+                        },
                     ],
                     [
-                        {command: 'sleep 1; echo "three-a"', name: 'row3a', color: ColorKey.cyan},
+                        {
+                            command: 'sleep 1; echo "three-a"',
+                            name: 'row3a',
+                            color: ColorKey.cyan,
+                        },
                         {
                             command: 'sleep 2; echo "three-b"',
                             name: 'row3b',
@@ -341,11 +362,23 @@ describe(runCommandMatrix.name, () => {
             inputs: [
                 [
                     [
-                        {command: 'sleep 1; echo "first-a"', name: 'row1a', color: ColorKey.blue},
-                        {command: 'sleep 2; echo "first-b"', name: 'row1b', color: ColorKey.red},
+                        {
+                            command: 'sleep 1; echo "first-a"',
+                            name: 'row1a',
+                            color: ColorKey.blue,
+                        },
+                        {
+                            command: 'sleep 2; echo "first-b"',
+                            name: 'row1b',
+                            color: ColorKey.red,
+                        },
                     ],
                     [
-                        {command: 'echo "middle-a"; exit 1;', name: 'row2a', color: ColorKey.green},
+                        {
+                            command: 'echo "middle-a"; exit 1;',
+                            name: 'row2a',
+                            color: ColorKey.green,
+                        },
                         {
                             command: 'sleep 5; echo "middle-b"',
                             name: 'row2b',
@@ -353,11 +386,21 @@ describe(runCommandMatrix.name, () => {
                         },
                     ],
                     [
-                        {command: 'echo "last-a"', name: 'row3a', color: ColorKey.cyan},
-                        {command: 'echo "last-b"', name: 'row3b', color: ColorKey.magenta},
+                        {
+                            command: 'echo "last-a"',
+                            name: 'row3a',
+                            color: ColorKey.cyan,
+                        },
+                        {
+                            command: 'echo "last-b"',
+                            name: 'row3b',
+                            color: ColorKey.magenta,
+                        },
                     ],
                 ],
-                {killOn: KillOn.Failure},
+                {
+                    killOn: KillOn.Failure,
+                },
             ],
             expect: {
                 stderr: [
@@ -379,15 +422,33 @@ describe(runCommandMatrix.name, () => {
             inputs: [
                 [
                     [
-                        {command: 'echo "first-a"; exit 1;', name: 'row1a', color: ColorKey.blue},
-                        {command: 'sleep 5; echo "first-b"', name: 'row1b', color: ColorKey.red},
+                        {
+                            command: 'echo "first-a"; exit 1;',
+                            name: 'row1a',
+                            color: ColorKey.blue,
+                        },
+                        {
+                            command: 'sleep 5; echo "first-b"',
+                            name: 'row1b',
+                            color: ColorKey.red,
+                        },
                     ],
                     [
-                        {command: 'echo "second-a"', name: 'row2a', color: ColorKey.green},
-                        {command: 'echo "second-b"', name: 'row2b', color: ColorKey.yellow},
+                        {
+                            command: 'echo "second-a"',
+                            name: 'row2a',
+                            color: ColorKey.green,
+                        },
+                        {
+                            command: 'echo "second-b"',
+                            name: 'row2b',
+                            color: ColorKey.yellow,
+                        },
                     ],
                 ],
-                {killOn: KillOn.Failure},
+                {
+                    killOn: KillOn.Failure,
+                },
             ],
             expect: {
                 stderr: [
@@ -405,11 +466,23 @@ describe(runCommandMatrix.name, () => {
             inputs: [
                 [
                     [
-                        {command: 'sleep 1; echo "first-a"', name: 'row1a', color: ColorKey.blue},
-                        {command: 'sleep 2; echo "first-b"', name: 'row1b', color: ColorKey.red},
+                        {
+                            command: 'sleep 1; echo "first-a"',
+                            name: 'row1a',
+                            color: ColorKey.blue,
+                        },
+                        {
+                            command: 'sleep 2; echo "first-b"',
+                            name: 'row1b',
+                            color: ColorKey.red,
+                        },
                     ],
                     [
-                        {command: 'echo "second-a"; exit 1;', name: 'row2a', color: ColorKey.green},
+                        {
+                            command: 'echo "second-a"; exit 1;',
+                            name: 'row2a',
+                            color: ColorKey.green,
+                        },
                         {
                             command: 'sleep 5; echo "second-b"',
                             name: 'row2b',
@@ -417,7 +490,9 @@ describe(runCommandMatrix.name, () => {
                         },
                     ],
                 ],
-                {killOn: KillOn.Failure},
+                {
+                    killOn: KillOn.Failure,
+                },
             ],
             expect: {
                 stderr: [
@@ -494,4 +569,34 @@ describe(runCommands.name, () => {
             },
         },
     ]);
+
+    it('terminates running workers on SIGINT', async () => {
+        const started = new DeferredPromise();
+        const promise = runCommands(
+            [
+                {
+                    command: 'echo started; sleep 60',
+                    color: ColorKey.blue,
+                    name: 'sleep',
+                },
+            ],
+            {
+                disableSummary: true,
+                loggers: {
+                    stdout(output) {
+                        if (output.includes('started')) {
+                            started.resolve();
+                        }
+                    },
+                    stderr: () => undefined,
+                },
+            },
+        );
+
+        await started.promise;
+        process.emit('SIGINT');
+
+        const result = await promise;
+        assert.isTrue(result.terminated);
+    });
 });

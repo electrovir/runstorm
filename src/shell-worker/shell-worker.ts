@@ -279,6 +279,7 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
         if (this.childPid != undefined && this.exitCode == undefined) {
             try {
                 process.kill(-this.childPid, 'SIGTERM');
+                /* node:coverage ignore next 3: cannot test this. */
             } catch {
                 // Group is already gone, or we're on a platform that doesn't support it.
             }
@@ -295,7 +296,9 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
         // eslint-disable-next-line @typescript-eslint/no-deprecated
         this.worker.addListener('message', async (message) => {
             try {
-                assertValidShape(message, fromWorkerMessageShape, {allowExtraKeys: true});
+                assertValidShape(message, fromWorkerMessageShape, {
+                    allowExtraKeys: true,
+                });
 
                 if (message.type === FromWorkerMessageType.Starting) {
                     makeWritable(this).hasStarted = true;

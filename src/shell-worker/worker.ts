@@ -77,7 +77,9 @@ let hasStarted = false;
 
 assertedPort.on('message', async (message) => {
     try {
-        assertValidShape(message, toWorkerMessageShape, {allowExtraKeys: true});
+        assertValidShape(message, toWorkerMessageShape, {
+            allowExtraKeys: true,
+        });
 
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (message.type === ToWorkerMessageType.Start) {

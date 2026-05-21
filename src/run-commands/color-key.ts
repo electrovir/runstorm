@@ -102,7 +102,9 @@ const basicColors: Record<BasicColorKey, CSPair[]> = arrayToObject(
             ],
         };
     },
-    {useRequired: true},
+    {
+        useRequired: true,
+    },
 );
 const inverseColors: Record<InverseColorKey, CSPair[]> = arrayToObject(
     basicColorKeys,

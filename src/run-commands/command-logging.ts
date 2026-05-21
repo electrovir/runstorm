@@ -48,7 +48,10 @@ export type CommandLogParams = {
  * @category Internal
  */
 export function handleCommandLog(params: Readonly<CommandLogParams>) {
-    removeSuffix({value: params.output, suffix: '\n'})
+    removeSuffix({
+        value: params.output,
+        suffix: '\n',
+    })
         .split('\n')
         .forEach((line) => {
             logCommandLogLine({
@@ -85,7 +88,7 @@ export function logCommandLogLine({
     }
 }
 
-// eslint-disable-next-line sonarjs/no-control-regex, no-control-regex
+// eslint-disable-next-line no-control-regex
 const colorPattern = /\x1B\[[0-?]*[ -/]*[@-~]/g;
 
 function getNewColors(output: string, previousColors: ReadonlyArray<string>): string[] {
