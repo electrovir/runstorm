@@ -267,9 +267,29 @@ export async function runCommands(
         addWorker();
     }
 
-    addWorker();
+    /**
+     * Route SIGINT/SIGTERM through `destroy()` on every running worker so that the spawned shell
+     * children (and their descendants) get SIGTERM'd via their process group. Without this, Node's
+     * default SIGINT behavior would exit the main process immediately, orphaning vite/npm/bash and
+     * leaving them running in the background after Ctrl+C.
+     */
+    function handleShutdownSignal() {
+        areAllTerminated = true;
+        currentRunningWorkers.forEach((shellWorker) => {
+            void shellWorker.destroy();
+        });
+    }
 
-    await allWorkersDone.promise;
+    process.once('SIGINT', handleShutdownSignal);
+    process.once('SIGTERM', handleShutdownSignal);
+
+    try {
+        addWorker();
+        await allWorkersDone.promise;
+    } finally {
+        process.off('SIGINT', handleShutdownSignal);
+        process.off('SIGTERM', handleShutdownSignal);
+    }
 
     if (!options.disableSummary) {
         loggers.stdout('\n\n' + createSummary(commands, exitCodes) + '\n\n');

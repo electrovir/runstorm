@@ -55,6 +55,7 @@ export type WorkerCommand = typeof workerCommandShape.runtimeType;
  */
 export enum FromWorkerMessageType {
     Starting = 'starting',
+    ChildStarted = 'child-started',
     Stdout = 'stdout',
     Stderr = 'stderr',
     Exit = 'exit',
@@ -70,6 +71,10 @@ export const fromWorkerMessageShape = defineShape(
     unionShape(
         {
             type: exactShape(FromWorkerMessageType.Starting),
+        },
+        {
+            type: exactShape(FromWorkerMessageType.ChildStarted),
+            childPid: -1,
         },
         {
             type: exactShape(FromWorkerMessageType.Error),

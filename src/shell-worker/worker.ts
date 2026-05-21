@@ -1,6 +1,6 @@
 import {assert} from '@augment-vir/assert';
 import {ensureError} from '@augment-vir/common';
-import {runShellCommand} from '@augment-vir/node';
+import {spawn} from 'node:child_process';
 import {parentPort} from 'node:worker_threads';
 import {assertValidShape} from 'object-shape-tester';
 import {
@@ -18,31 +18,58 @@ function postMessage(message: Readonly<FromWorkerMessage>) {
     assertedPort.postMessage(message);
 }
 
-async function runCommand(workerCommand: Readonly<WorkerCommand>) {
-    const result = await runShellCommand(workerCommand.command, {
-        cwd: workerCommand.cwd || undefined,
-        env: {
-            ...process.env,
-            ...workerCommand.env,
-        },
-        shell: workerCommand.shell || undefined,
-        stderrCallback(stderr) {
+function runCommand(workerCommand: Readonly<WorkerCommand>) {
+    return new Promise<void>((resolve) => {
+        const childProcess = spawn(workerCommand.command, {
+            cwd: workerCommand.cwd || undefined,
+            env: {
+                ...process.env,
+                ...workerCommand.env,
+            },
+            shell: workerCommand.shell || 'bash',
+            /**
+             * Place the child in its own process group so the parent can later kill the entire
+             * descendant tree (e.g. bash -> npm -> node -> vite) via `process.kill(-pid)`. Without
+             * this, grandchildren get orphaned when the worker thread is terminated, because the
+             * spawned shell child is parented to the main Node process and survives worker
+             * termination.
+             */
+            detached: true,
+        });
+
+        if (childProcess.pid != undefined) {
             postMessage({
-                type: FromWorkerMessageType.Stderr,
-                stderr,
+                type: FromWorkerMessageType.ChildStarted,
+                childPid: childProcess.pid,
             });
-        },
-        stdoutCallback(stdout) {
+        }
+
+        childProcess.stdout.on('data', (chunk: Buffer) => {
             postMessage({
                 type: FromWorkerMessageType.Stdout,
-                stdout,
+                stdout: chunk.toString(),
             });
-        },
-    });
-
-    postMessage({
-        type: FromWorkerMessageType.Exit,
-        exitCode: result.exitCode || 0,
+        });
+        childProcess.stderr.on('data', (chunk: Buffer) => {
+            postMessage({
+                type: FromWorkerMessageType.Stderr,
+                stderr: chunk.toString(),
+            });
+        });
+        /* node:coverage ignore next 6: hard to trigger reliably. */
+        childProcess.on('error', (error) => {
+            postMessage({
+                type: FromWorkerMessageType.Error,
+                error: ensureError(error),
+            });
+        });
+        childProcess.on('close', (exitCode) => {
+            postMessage({
+                type: FromWorkerMessageType.Exit,
+                exitCode: exitCode || 0,
+            });
+            resolve();
+        });
     });
 }
 

@@ -149,6 +149,12 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
     /** Indicates that the worker thread has started. */
     public readonly hasStarted: boolean = false;
 
+    /**
+     * The PID of the spawned shell child. Defined once the worker has reported it back, undefined
+     * before then or on platforms where PIDs are not available.
+     */
+    public readonly childPid: number | undefined;
+
     /** All stdout combined. This will continue to be updated until the worker thread has exited. */
     public readonly stdout: string[] = [];
     /** All stderr combined. This will continue to be updated until the worker thread has exited. */
@@ -263,6 +269,21 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
             return;
         }
         makeWritable(this).isDestroyed = true;
+
+        /**
+         * Send SIGTERM to the child's entire process group so grandchildren (e.g. vite under npm)
+         * die too. Without this, `worker.terminate()` only kills the worker thread, leaving the
+         * spawned shell child and its descendants orphaned. Negative-PID process-group signalling
+         * is a no-op on Windows; the try/catch absorbs that and the already-exited case.
+         */
+        if (this.childPid != undefined && this.exitCode == undefined) {
+            try {
+                process.kill(-this.childPid, 'SIGTERM');
+            } catch {
+                // Group is already gone, or we're on a platform that doesn't support it.
+            }
+        }
+
         // eslint-disable-next-line @typescript-eslint/no-deprecated
         await this.worker.terminate();
         await this.waitForExit();
@@ -278,6 +299,8 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
 
                 if (message.type === FromWorkerMessageType.Starting) {
                     makeWritable(this).hasStarted = true;
+                } else if (message.type === FromWorkerMessageType.ChildStarted) {
+                    makeWritable(this).childPid = message.childPid;
                 } else if (message.type === FromWorkerMessageType.Stdout) {
                     if (this.options.hookUpToConsole) {
                         process.stdout.write(message.stdout);
