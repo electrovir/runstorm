@@ -95,7 +95,22 @@ export type ShellWorkerOptions = Omit<WorkerCommand, 'command'> &
         hookUpToConsole: boolean;
         /** Attach {@link ShellWorker} listeners immediately. */
         listeners: ShellWorkerListeners;
+        /**
+         * Override the grace period (in milliseconds) between the initial SIGTERM and the SIGKILL
+         * fallback in {@link ShellWorker.destroy}. Long enough by default for well-behaved children
+         * (vite, tsx) to shut down cleanly; short enough that an unresponsive tree doesn't keep the
+         * user waiting after Ctrl+C. Set to `0` or a negative number to disable the fallback.
+         */
+        destroyForceKillDelayMs: number;
     }>;
+
+/**
+ * Default grace period before `ShellWorker.destroy` escalates from SIGTERM to SIGKILL. See
+ * `ShellWorkerOptions.destroyForceKillDelayMs`.
+ *
+ * @category Internal
+ */
+export const defaultDestroyForceKillDelayMs = 2000;
 
 /**
  * An individual shell command spawned in a separate worker thread. Use static methods to create an
@@ -275,13 +290,40 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
          * die too. Without this, `worker.terminate()` only kills the worker thread, leaving the
          * spawned shell child and its descendants orphaned. Negative-PID process-group signalling
          * is a no-op on Windows; the try/catch absorbs that and the already-exited case.
+         *
+         * Real-world chains include intermediate processes (npm-workspace shim, tsx --watch,
+         * virmator) that either swallow SIGTERM or rely on a parent to forward it — and once
+         * `worker.terminate()` runs below, that parent is gone. We schedule a SIGKILL fallback on
+         * the same group so any survivor of the SIGTERM round is guaranteed to die. The kill is
+         * best-effort: by the time it fires the group may already be empty (clean shutdown happens
+         * fast), and `process.kill` will throw, which we absorb.
          */
         if (this.childPid != undefined && this.exitCode == undefined) {
+            const pgid = this.childPid;
             try {
-                process.kill(-this.childPid, 'SIGTERM');
+                process.kill(-pgid, 'SIGTERM');
                 /* node:coverage ignore next 3: cannot test this. */
             } catch {
                 // Group is already gone, or we're on a platform that doesn't support it.
+            }
+
+            const forceKillDelay =
+                this.options.destroyForceKillDelayMs ?? defaultDestroyForceKillDelayMs;
+            if (forceKillDelay > 0) {
+                const sigkillTimer = setTimeout(() => {
+                    try {
+                        process.kill(-pgid, 'SIGKILL');
+                        /* node:coverage ignore next 3: timer-driven, race-y. */
+                    } catch {
+                        // Group already exited cleanly, or platform doesn't support it.
+                    }
+                }, forceKillDelay);
+                /**
+                 * Don't let the fallback timer keep the host process alive on its own. If
+                 * everything shuts down cleanly before the timer fires, the process should be free
+                 * to exit; the unref'd timer will simply never fire.
+                 */
+                sigkillTimer.unref();
             }
         }
 

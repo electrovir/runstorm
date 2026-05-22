@@ -1,5 +1,5 @@
-import {assert, waitUntil} from '@augment-vir/assert';
-import {DeferredPromise} from '@augment-vir/common';
+import {assert, assertWrap, waitUntil} from '@augment-vir/assert';
+import {DeferredPromise, wait} from '@augment-vir/common';
 import {describe, it} from '@augment-vir/test';
 import {resolve} from 'node:path';
 import {ShellWorker} from './shell-worker.js';
@@ -147,5 +147,47 @@ describe(ShellWorker.name, () => {
         await worker.destroy();
 
         assert.notStrictEquals(await deferredExitCode.promise, 0);
+    });
+    it('escalates to SIGKILL when the child ignores SIGTERM', async () => {
+        /**
+         * A Node child that traps SIGTERM and prints `ready` once the handler is installed. This is
+         * the deterministic way to verify the SIGKILL fallback fires — `bash`'s `trap '' TERM` only
+         * protects bash itself, and `sleep` doesn't trap SIGTERM at all, so neither survives the
+         * SIGTERM round to exercise the fallback.
+         */
+        const command = [
+            'node -e "',
+            "process.on('SIGTERM', () => {});",
+            "console.log('ready');",
+            'setInterval(() => {}, 1_000);',
+            '"',
+        ].join(' ');
+
+        const worker = await ShellWorker.startWorker(command, {
+            destroyForceKillDelayMs: 100,
+        });
+
+        /** Wait for the SIGTERM trap to be installed before we send any signal. */
+        await waitUntil.isTrue(() => worker.stdout.some((chunk) => chunk.includes('ready')));
+        const childPid = assertWrap.isDefined(worker.childPid);
+
+        await worker.destroy();
+
+        /**
+         * `destroy()` returns as soon as the worker thread terminates, but the orphaned shell child
+         * may still be in its SIGTERM grace period. Wait past the configured force-kill delay
+         * before probing.
+         */
+        await wait({
+            milliseconds: 500,
+        });
+
+        /**
+         * `process.kill(-pgid, 0)` doesn't deliver a signal — it just probes the process group. If
+         * the SIGKILL fallback ran, the group is empty and the call throws ESRCH.
+         */
+        assert.throws(() => {
+            process.kill(-childPid, 0);
+        });
     });
 });
