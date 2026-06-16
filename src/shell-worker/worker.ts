@@ -1,4 +1,4 @@
-import {assert} from '@augment-vir/assert';
+import {assert, check} from '@augment-vir/assert';
 import {ensureError} from '@augment-vir/common';
 import {spawn} from 'node:child_process';
 import {parentPort} from 'node:worker_threads';
@@ -76,6 +76,15 @@ function runCommand(workerCommand: Readonly<WorkerCommand>) {
 let hasStarted = false;
 
 assertedPort.on('message', async (message) => {
+    /**
+     * Node 24's tsx loader posts internal messages (e.g. `watch:import`) on the same parent port;
+     * they have no `type` field. Skip those so they don't trip the shape validator. Messages with a
+     * `type` field but wrong value still fall through to be reported as protocol errors.
+     */
+    /* node:coverage ignore next 3: only reached on Node 24+ where tsx posts internal messages. */
+    if (!check.isObject(message) || !('type' in message)) {
+        return;
+    }
     try {
         assertValidShape(message, toWorkerMessageShape, {
             allowExtraKeys: true,

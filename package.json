@@ -1,6 +1,6 @@
 {
     "name": "runstorm",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "Easily run multiple commands in parallel threads.",
     "keywords": [
         "parallel",
@@ -94,6 +94,6 @@
         "virmator": "^14.15.0"
     },
     "engines": {
-        "node": "^22"
+        "node": ">=22"
     }
 }

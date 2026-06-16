@@ -1,4 +1,4 @@
-import {assertWrap, waitUntil} from '@augment-vir/assert';
+import {assertWrap, check, waitUntil} from '@augment-vir/assert';
 import {
     DeferredPromise,
     ensureArray,
@@ -337,6 +337,15 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
     protected attachWorkerListeners() {
         // eslint-disable-next-line @typescript-eslint/no-deprecated
         this.worker.addListener('message', async (message) => {
+            /**
+             * Node 24's tsx loader posts internal messages (e.g. `watch:import`) on the same worker
+             * port. Anything outside our protocol is ignored so it doesn't trip the shape
+             * validator.
+             */
+            /* node:coverage ignore next 3: only reached on Node 24+ where tsx posts internal messages. */
+            if (!check.isEnumValue(message?.type, FromWorkerMessageType)) {
+                return;
+            }
             try {
                 assertValidShape(message, fromWorkerMessageShape, {
                     allowExtraKeys: true,
