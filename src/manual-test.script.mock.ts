@@ -17,10 +17,12 @@ const sections: {header: string; only?: boolean; callback: () => MaybePromise<un
         header: 'all complete',
         async callback() {
             return (
-                await runRawCommands([
-                    'echo "hi"; sleep 1; echo "hi again";',
-                    'echo "bye"',
-                ])
+                await runRawCommands({
+                    commands: [
+                        'echo "hi"; sleep 1; echo "hi again";',
+                        'echo "bye"',
+                    ],
+                })
             ).highestExitCode;
         },
     },
@@ -28,17 +30,15 @@ const sections: {header: string; only?: boolean; callback: () => MaybePromise<un
         header: 'kill all on success',
         async callback() {
             return (
-                await runRawCommands(
-                    [
+                await runRawCommands({
+                    commands: [
                         'echo "hi"; sleep 2; echo "hi again";',
                         'echo "bye"',
                     ],
-                    undefined,
-                    undefined,
-                    {
+                    options: {
                         killOn: KillOn.Success,
                     },
-                )
+                })
             ).highestExitCode;
         },
     },
@@ -46,17 +46,15 @@ const sections: {header: string; only?: boolean; callback: () => MaybePromise<un
         header: 'kill all on failure',
         async callback() {
             return (
-                await runRawCommands(
-                    [
+                await runRawCommands({
+                    commands: [
                         'sleep 10; echo "one";',
                         'echo "two"; exit 1;',
                     ],
-                    undefined,
-                    undefined,
-                    {
+                    options: {
                         killOn: KillOn.Failure,
                     },
-                )
+                })
             ).highestExitCode;
         },
     },
@@ -64,9 +62,11 @@ const sections: {header: string; only?: boolean; callback: () => MaybePromise<un
         header: 'preserves colors',
         async callback() {
             return (
-                await runRawCommands([
-                    "echo $'\x1b[34m one'; sleep 1; echo $'two\x1b[0m'; sleep 1; echo 'three'",
-                ])
+                await runRawCommands({
+                    commands: [
+                        "echo $'\x1b[34m one'; sleep 1; echo $'two\x1b[0m'; sleep 1; echo 'three'",
+                    ],
+                })
             ).highestExitCode;
         },
     },

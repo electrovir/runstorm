@@ -21,11 +21,15 @@ export type Command = {
  *
  * @category Internal
  */
-export function createCommands(
-    commandStrings: ReadonlyArray<string>,
-    commandNames: ReadonlyArray<string>,
-    commandColors: ReadonlyArray<string>,
-): Command[] {
+export function createCommands({
+    commandStrings,
+    commandNames,
+    commandColors,
+}: Readonly<{
+    commandStrings: ReadonlyArray<string>;
+    commandNames: ReadonlyArray<string>;
+    commandColors: ReadonlyArray<string>;
+}>): Command[] {
     const usedCommandNames: {[CommandName in string]: number} = {};
 
     return filterMap(

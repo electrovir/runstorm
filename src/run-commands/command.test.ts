@@ -6,17 +6,17 @@ describe(createCommands.name, () => {
     itCases(createCommands, [
         {
             it: 'adds count to duplicated names',
-            inputs: [
-                [
+            input: {
+                commandStrings: [
                     'hi',
                     'bye',
                 ],
-                [
+                commandNames: [
                     'go',
                     'go',
                 ],
-                [],
-            ],
+                commandColors: [],
+            },
             only: true,
             expect: [
                 {
@@ -33,16 +33,16 @@ describe(createCommands.name, () => {
         },
         {
             it: 'omits empty commands',
-            inputs: [
-                [
+            input: {
+                commandStrings: [
                     'hi',
                     '',
                 ],
-                [
+                commandNames: [
                     'go',
                 ],
-                [],
-            ],
+                commandColors: [],
+            },
             expect: [
                 {
                     command: 'hi',

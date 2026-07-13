@@ -100,7 +100,11 @@ export async function runCli(
     const commandNames = (args.names || '').split(',');
     const commandColors = (args.colors || '').split(',');
 
-    const commands = createCommands(args.commands, commandNames, commandColors);
+    const commands = createCommands({
+        commandStrings: args.commands,
+        commandNames,
+        commandColors,
+    });
 
     const {highestExitCode} = await runCommands(commands, options);
 

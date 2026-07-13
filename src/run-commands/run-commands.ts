@@ -60,13 +60,25 @@ export type RunCommandOptions = PartialWithUndefined<{
  * @category Main
  * @returns The exits codes of each command in order.
  */
-export async function runRawCommands(
-    commands: ReadonlyArray<string>,
-    commandNames: ReadonlyArray<string> = [],
-    commandColors: ReadonlyArray<ColorKey> = [],
-    options: Readonly<RunCommandOptions> = {},
-) {
-    return await runCommands(createCommands(commands, commandNames, commandColors), options);
+export async function runRawCommands({
+    commands,
+    commandNames = [],
+    commandColors = [],
+    options = {},
+}: Readonly<{
+    commands: ReadonlyArray<string>;
+    commandNames?: ReadonlyArray<string>;
+    commandColors?: ReadonlyArray<ColorKey>;
+    options?: Readonly<RunCommandOptions>;
+}>) {
+    return await runCommands(
+        createCommands({
+            commandStrings: commands,
+            commandNames,
+            commandColors,
+        }),
+        options,
+    );
 }
 
 /**

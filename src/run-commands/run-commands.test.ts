@@ -30,15 +30,18 @@ describe(runRawCommands.name, () => {
     ) {
         const logs = mapEnumToObject(LogOutputType, () => [] as string[]);
 
-        await runRawCommands(commands, undefined, undefined, {
-            loggers: mapEnumToObject(LogOutputType, (outputType) => {
-                return (output: string) => {
-                    return logs[outputType].push(
-                        (options.keepColor ? output : removeColor(output)).trim(),
-                    );
-                };
-            }),
-            ...options,
+        await runRawCommands({
+            commands,
+            options: {
+                loggers: mapEnumToObject(LogOutputType, (outputType) => {
+                    return (output: string) => {
+                        return logs[outputType].push(
+                            (options.keepColor ? output : removeColor(output)).trim(),
+                        );
+                    };
+                }),
+                ...options,
+            },
         });
 
         return logs;
@@ -203,7 +206,11 @@ describe(runRawCommands.name, () => {
     ]);
 
     it('runs with default loggers', async () => {
-        await runRawCommands(['echo "hi"']);
+        const {highestExitCode} = await runRawCommands({
+            commands: ['echo "hi"'],
+        });
+
+        assert.strictEquals(highestExitCode, 0);
     });
 });
 

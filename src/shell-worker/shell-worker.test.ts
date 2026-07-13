@@ -14,9 +14,17 @@ describe(ShellWorker.name, () => {
         });
     });
     it('hooks up to the console', async () => {
-        await ShellWorker.completeWorker('echo "hi"; echo "hi" >&2;', {
-            hookUpToConsole: true,
-        });
+        assert.deepEquals(
+            await ShellWorker.completeWorker('echo "hi"; echo "hi" >&2;', {
+                hookUpToConsole: true,
+            }),
+            {
+                exitCode: 0,
+                stderr: 'hi\n',
+                stdout: 'hi\n',
+                errors: [],
+            },
+        );
     });
     it('combines env', async () => {
         process.env.VALUE_1 = 'one';
@@ -74,7 +82,12 @@ describe(ShellWorker.name, () => {
         const worker = await ShellWorker.startWorker('echo "test"');
 
         await worker.waitForExit();
-        await worker.waitForExit();
+        assert.deepEquals(await worker.waitForExit(), {
+            exitCode: 0,
+            stderr: '',
+            stdout: 'test\n',
+            errors: [],
+        });
     });
     it('waitForExit waits for exit', async () => {
         const worker = ShellWorker.createWorker('echo "test"');
@@ -83,7 +96,12 @@ describe(ShellWorker.name, () => {
 
         await worker.startExecution();
         await worker.startExecution();
-        await exitPromise;
+        assert.deepEquals(await exitPromise, {
+            exitCode: 0,
+            stderr: '',
+            stdout: 'test\n',
+            errors: [],
+        });
     });
     it('runs in different directory', async () => {
         const cwd = resolve(process.cwd(), '..');
