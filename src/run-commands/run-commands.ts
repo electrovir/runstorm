@@ -5,8 +5,8 @@ import {
     LogOutputType,
     mapEnumToObject,
     type PartialWithUndefined,
+    type SetOptional,
 } from '@augment-vir/common';
-import {type SetOptional} from 'type-fest';
 import {ShellWorker} from '../shell-worker/shell-worker.js';
 import {type ColorKey} from './color-key.js';
 import {

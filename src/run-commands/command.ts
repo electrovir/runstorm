@@ -1,6 +1,10 @@
 import {check, checkWrap} from '@augment-vir/assert';
-import {filterMap, getOrSet, type PartialWithUndefined} from '@augment-vir/common';
-import {type SetOptional} from 'type-fest';
+import {
+    filterMap,
+    getOrSet,
+    type PartialWithUndefined,
+    type SetOptional,
+} from '@augment-vir/common';
 import {allColorsByKey, getColorKeyByIndex, type ColorKey} from './color-key.js';
 
 /**
