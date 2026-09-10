@@ -1,4 +1,4 @@
-import {assert} from '@augment-vir/assert';
+import {assert, assertWrap, waitUntil} from '@augment-vir/assert';
 import {
     DeferredPromise,
     LogOutputType,
@@ -7,6 +7,11 @@ import {
     type PartialWithUndefined,
 } from '@augment-vir/common';
 import {describe, it, itCases} from '@augment-vir/test';
+import {existsSync} from 'node:fs';
+import {readFile, rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join, resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
 import {repoDirPath, srcDirPath} from '../repo-paths.mock.js';
 import {ColorKey} from './color-key.js';
 import {type Command} from './command.js';
@@ -520,6 +525,56 @@ describe(runCommandMatrix.name, () => {
 });
 
 describe(runCommands.name, () => {
+    it('does not require a package executable on PATH', async () => {
+        const compiledFilePath = resolve(
+            import.meta.dirname,
+            '../../dist/run-commands/run-commands.js',
+        );
+        /**
+         * Only the compiled build can prove this: from `dist` the watchdog is spawned as plain
+         * JavaScript with no `tsx` loader to resolve out of `node_modules/.bin`. A checkout that
+         * has not been compiled yet has nothing to assert against.
+         */
+        if (!existsSync(compiledFilePath)) {
+            return;
+        }
+
+        const pathVariableName = process.platform === 'win32' ? 'Path' : 'PATH';
+        const originalPath = assertWrap.isDefined(process.env[pathVariableName]);
+        process.env[pathVariableName] = '/no-package-executables';
+
+        try {
+            /**
+             * A computed import specifier resolves to `any`, so the annotation is what keeps this
+             * call site type checked against the source definition.
+             */
+            const {runCommands: runCompiledCommands}: {runCommands: typeof runCommands} =
+                await import(pathToFileURL(compiledFilePath).href);
+            const result = await runCompiledCommands(
+                [
+                    {
+                        command: process.platform === 'win32' ? 'echo ready' : 'printf ready',
+                    },
+                ],
+                {
+                    disableSummary: true,
+                    loggers: {
+                        stderr: () => undefined,
+                        stdout: () => undefined,
+                    },
+                    shell:
+                        process.platform === 'win32'
+                            ? assertWrap.isDefined(process.env.ComSpec)
+                            : '/bin/bash',
+                },
+            );
+
+            assert.strictEquals(result.highestExitCode, 0);
+        } finally {
+            process.env[pathVariableName] = originalPath;
+        }
+    });
+
     async function testCommands(
         commands: ReadonlyArray<Readonly<Command>>,
         options: Readonly<
@@ -576,6 +631,114 @@ describe(runCommands.name, () => {
             },
         },
     ]);
+
+    it('resolves without commands', async () => {
+        assert.deepEquals(
+            await runCommands([], {
+                disableSummary: true,
+            }),
+            {
+                exitCodes: [],
+                highestExitCode: 0,
+                terminated: false,
+            },
+        );
+    });
+
+    it('runs without a child-process watchdog', async () => {
+        assert.deepEquals(
+            await runCommands(
+                [
+                    {
+                        command: 'echo "hi"',
+                    },
+                ],
+                {
+                    disableChildProcessWatchdog: true,
+                    disableSummary: true,
+                    loggers: {
+                        stderr: () => undefined,
+                        stdout: () => undefined,
+                    },
+                },
+            ),
+            {
+                exitCodes: [0],
+                highestExitCode: 0,
+                terminated: false,
+            },
+        );
+    });
+
+    it('lets a terminated command shut down within its grace period', async () => {
+        /**
+         * The watchdog reaps whatever is still registered when RunStorm's standard input pipe
+         * closes. Doing that the instant `runCommands` returns would SIGKILL commands that are
+         * still inside their SIGTERM grace period. The marker file is the only usable evidence:
+         * `worker.terminate()` has already torn down the thread that was piping the command's
+         * output, so nothing the command prints after being signaled can reach these loggers.
+         */
+        const markerFilePath = join(tmpdir(), `runstorm-graceful-shutdown-${process.pid}.txt`);
+        await rm(markerFilePath, {
+            force: true,
+        });
+        /**
+         * The shutdown delay has to outlast the watchdog's own startup, or an immediate sweep would
+         * land after the marker was already written and the test would pass either way. It still
+         * has to finish well inside `defaultDestroyForceKillDelayMs`.
+         */
+        const command = [
+            'node -e "',
+            "process.on('SIGTERM', () => setTimeout(() => {require('node:fs').writeFileSync(",
+            `'${markerFilePath}', 'shut down cleanly'); process.exit(0);}, 1_200));`,
+            "console.log('ready');",
+            'setInterval(() => {}, 1_000);',
+            '"',
+        ].join(' ');
+        const ready = new DeferredPromise();
+
+        const promise = runCommands(
+            [
+                {
+                    command,
+                    name: 'graceful',
+                },
+            ],
+            {
+                disableSummary: true,
+                loggers: {
+                    stdout(output) {
+                        if (output.includes('ready')) {
+                            ready.resolve();
+                        }
+                    },
+                    stderr: () => undefined,
+                },
+            },
+        );
+
+        await ready.promise;
+        process.emit('SIGINT');
+        await promise;
+
+        try {
+            await waitUntil.isTrue(
+                async () => (await readFile(markerFilePath, 'utf8')) === 'shut down cleanly',
+                {
+                    interval: {
+                        milliseconds: 50,
+                    },
+                    timeout: {
+                        seconds: 5,
+                    },
+                },
+            );
+        } finally {
+            await rm(markerFilePath, {
+                force: true,
+            });
+        }
+    });
 
     it('terminates running workers on SIGINT', async () => {
         const started = new DeferredPromise();

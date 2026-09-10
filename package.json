@@ -1,6 +1,6 @@
 {
     "name": "runstorm",
-    "version": "1.0.6",
+    "version": "1.1.0",
     "description": "Easily run multiple commands in parallel threads.",
     "keywords": [
         "parallel",
@@ -27,7 +27,9 @@
     "main": "src/index.ts",
     "module": "src/index.ts",
     "types": "src/index.ts",
-    "bin": "dist/cli/cli.script.js",
+    "bin": {
+        "runstorm": "dist/cli/cli.script.js"
+    },
     "scripts": {
         "compile": "virmator compile",
         "docs": "virmator docs",

@@ -1,6 +1,7 @@
 import {assert, assertWrap, waitUntil} from '@augment-vir/assert';
 import {DeferredPromise, wait} from '@augment-vir/common';
 import {describe, it} from '@augment-vir/test';
+import {constants} from 'node:os';
 import {resolve} from 'node:path';
 import {ShellWorker} from './shell-worker.js';
 
@@ -12,6 +13,17 @@ describe(ShellWorker.name, () => {
             stdout: 'hi\n',
             errors: [],
         });
+    });
+    it('preserves signal exit codes', async () => {
+        /**
+         * A signal-killed child reports a `null` exit code, which must not be flattened to the `0`
+         * that means success. RunStorm signals commands itself, so that would report every
+         * terminated command as having passed.
+         */
+        assert.strictEquals(
+            (await ShellWorker.completeWorker('kill -TERM $$')).exitCode,
+            128 + constants.signals.SIGTERM,
+        );
     });
     it('hooks up to the console', async () => {
         assert.deepEquals(
@@ -49,6 +61,14 @@ describe(ShellWorker.name, () => {
         assert.deepEquals(await ShellWorker.completeWorker('echo "ERROR" >&2'), {
             exitCode: 0,
             stderr: 'ERROR\n',
+            stdout: '',
+            errors: [],
+        });
+    });
+    it('preserves nonzero exit codes', async () => {
+        assert.deepEquals(await ShellWorker.completeWorker('exit 1'), {
+            exitCode: 1,
+            stderr: '',
             stdout: '',
             errors: [],
         });
@@ -137,6 +157,22 @@ describe(ShellWorker.name, () => {
         });
 
         assert.strictEquals(await deferredPromise.promise, 0);
+    });
+    it('reports when a child process exits', async () => {
+        const childProcessStarted = new DeferredPromise<number>();
+        const childProcessExited = new DeferredPromise<number>();
+
+        const worker = await ShellWorker.startWorker('echo "hi"', {
+            onChildProcessStarted(childProcessId) {
+                childProcessStarted.resolve(childProcessId);
+            },
+            onChildProcessExited(childProcessId) {
+                childProcessExited.resolve(childProcessId);
+            },
+        });
+
+        await worker.waitForExit();
+        assert.strictEquals(await childProcessExited.promise, await childProcessStarted.promise);
     });
     it('ignores empty and undefined listeners', async () => {
         assert.strictEquals(

@@ -7,7 +7,8 @@ import {
     type PartialWithUndefined,
     type SetOptional,
 } from '@augment-vir/common';
-import {ShellWorker} from '../shell-worker/shell-worker.js';
+import {spawnChildProcessWatchdog} from '../child-process-watchdog/watchdog-spawn.js';
+import {defaultDestroyForceKillDelayMs, ShellWorker} from '../shell-worker/shell-worker.js';
 import {type ColorKey} from './color-key.js';
 import {
     createSummary,
@@ -50,6 +51,11 @@ export type RunCommandOptions = PartialWithUndefined<{
     disableColorPreserve: boolean;
     shell: string;
     workerFilePath: string;
+    /**
+     * Skip the detached watchdog process that kills leftover command trees if RunStorm itself is
+     * killed. Commands then run unguarded: a `SIGKILL` of the RunStorm process orphans them.
+     */
+    disableChildProcessWatchdog: boolean;
     /** Optional custom loggers. Defaults to `process.stdout.write` and `process.stderr.write`. */
     loggers: PartialWithUndefined<Readonly<CommandLoggers>>;
 }>;
@@ -140,6 +146,9 @@ export async function runCommandMatrix(
 /**
  * Run all given raw commands within RunStorm.
  *
+ * Unless `disableChildProcessWatchdog` is set, this spawns one short-lived detached watchdog
+ * process alongside the commands so that killing RunStorm does not leave the commands running.
+ *
  * @category Main
  * @returns The exits codes of each command in order.
  */
@@ -171,8 +180,19 @@ export async function runCommands(
         };
     });
     const currentRunningWorkers = new Set<ShellWorker>();
+    /** Nothing to guard without commands, so don't pay for a whole extra process. */
+    const childProcessWatchdog =
+        options.disableChildProcessWatchdog || !commandsLeft.length
+            ? undefined
+            : spawnChildProcessWatchdog({
+                  shutdownGraceMs: defaultDestroyForceKillDelayMs,
+              });
 
     const allWorkersDone = new DeferredPromise();
+
+    if (!commandsLeft.length) {
+        allWorkersDone.resolve();
+    }
 
     function addWorker() {
         if (
@@ -201,6 +221,12 @@ export async function runCommands(
             env: options.env,
             shell: options.shell,
             workerFilePath: options.workerFilePath,
+            onChildProcessStarted(childProcessId) {
+                childProcessWatchdog?.childProcessStarted(childProcessId);
+            },
+            onChildProcessExited(childProcessId) {
+                childProcessWatchdog?.childProcessExited(childProcessId);
+            },
             listeners: {
                 WorkerExitEvent({detail: {exitCode, wasTerminated}}) {
                     currentRunningWorkers.delete(worker);
@@ -299,6 +325,7 @@ export async function runCommands(
         addWorker();
         await allWorkersDone.promise;
     } finally {
+        childProcessWatchdog?.shutdown();
         process.off('SIGINT', handleShutdownSignal);
         process.off('SIGTERM', handleShutdownSignal);
     }

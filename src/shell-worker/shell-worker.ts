@@ -1,3 +1,4 @@
+// cspell:word taskkill
 import {assertWrap, check, waitUntil} from '@augment-vir/assert';
 import {
     DeferredPromise,
@@ -19,6 +20,7 @@ import {resolve} from 'node:path';
 import {Worker} from 'node:worker_threads';
 import {assertValidShape} from 'object-shape-tester';
 import {defineTypedCustomEvent, ListenTarget} from 'typed-event-target';
+import {stopChildProcessTree} from '../child-process-watchdog/process-tree.js';
 import {
     fromWorkerMessageShape,
     FromWorkerMessageType,
@@ -95,6 +97,10 @@ export type ShellWorkerOptions = Omit<WorkerCommand, 'command'> &
         hookUpToConsole: boolean;
         /** Attach {@link ShellWorker} listeners immediately. */
         listeners: ShellWorkerListeners;
+        /** Called when the worker has started its command process. */
+        onChildProcessStarted: (childProcessId: number) => void;
+        /** Called after the worker's command process has exited. */
+        onChildProcessExited: (childProcessId: number) => void;
         /**
          * Override the grace period (in milliseconds) between the initial SIGTERM and the SIGKILL
          * fallback in {@link ShellWorker.destroy}. Long enough by default for well-behaved children
@@ -235,11 +241,14 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
 
     /** Start the worker thread. */
     public async startExecution() {
-        if (this.hasStarted) {
+        if (this.hasStarted || this.isDestroyed) {
             return;
         }
 
         await waitUntil.isTrue(async () => {
+            if (this.isDestroyed) {
+                return true;
+            }
             // eslint-disable-next-line @typescript-eslint/no-deprecated
             this.postMessage({
                 type: ToWorkerMessageType.Start,
@@ -249,7 +258,7 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
             await wait({
                 milliseconds: 0,
             });
-            return this.hasStarted;
+            return this.hasStarted || this.isDestroyed;
         });
     }
 
@@ -286,10 +295,11 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
         makeWritable(this).isDestroyed = true;
 
         /**
-         * Send SIGTERM to the child's entire process group so grandchildren (e.g. vite under npm)
-         * die too. Without this, `worker.terminate()` only kills the worker thread, leaving the
-         * spawned shell child and its descendants orphaned. Negative-PID process-group signalling
-         * is a no-op on Windows; the try/catch absorbs that and the already-exited case.
+         * Send SIGTERM to the child process tree so grandchildren (e.g. vite under npm) die too.
+         * Without this, `worker.terminate()` only kills the worker thread, leaving the spawned
+         * shell child and its descendants orphaned. POSIX uses process-group signaling; Windows
+         * uses `taskkill /T`, first as a close request and then, after the grace period, with
+         * `/F`.
          *
          * Real-world chains include intermediate processes (npm-workspace shim, tsx --watch,
          * virmator) that either swallow SIGTERM or rely on a parent to forward it — and once
@@ -299,24 +309,14 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
          * fast), and `process.kill` will throw, which we absorb.
          */
         if (this.childPid != undefined && this.exitCode == undefined) {
-            const pgid = this.childPid;
-            try {
-                process.kill(-pgid, 'SIGTERM');
-                /* node:coverage ignore next 3: cannot test this. */
-            } catch {
-                // Group is already gone, or we're on a platform that doesn't support it.
-            }
+            const childProcessId = this.childPid;
+            stopChildProcessTree(childProcessId, 'SIGTERM');
 
             const forceKillDelay =
                 this.options.destroyForceKillDelayMs ?? defaultDestroyForceKillDelayMs;
             if (forceKillDelay > 0) {
                 const sigkillTimer = setTimeout(() => {
-                    try {
-                        process.kill(-pgid, 'SIGKILL');
-                        /* node:coverage ignore next 3: timer-driven, race-y. */
-                    } catch {
-                        // Group already exited cleanly, or platform doesn't support it.
-                    }
+                    stopChildProcessTree(childProcessId, 'SIGKILL');
                 }, forceKillDelay);
                 /**
                  * Don't let the fallback timer keep the host process alive on its own. If
@@ -355,6 +355,7 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
                     makeWritable(this).hasStarted = true;
                 } else if (message.type === FromWorkerMessageType.ChildStarted) {
                     makeWritable(this).childPid = message.childPid;
+                    this.options.onChildProcessStarted?.(message.childPid);
                 } else if (message.type === FromWorkerMessageType.Stdout) {
                     if (this.options.hookUpToConsole) {
                         process.stdout.write(message.stdout);
@@ -387,6 +388,9 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
                     }
 
                     makeWritable(this).exitCode = assertWrap.isDefined(message.exitCode);
+                    if (this.childPid != undefined) {
+                        this.options.onChildProcessExited?.(this.childPid);
+                    }
 
                     this.dispatch(
                         new WorkerExitEvent({

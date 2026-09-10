@@ -1,6 +1,7 @@
 import {assert, check} from '@augment-vir/assert';
 import {ensureError} from '@augment-vir/common';
 import {spawn} from 'node:child_process';
+import {constants} from 'node:os';
 import {parentPort} from 'node:worker_threads';
 import {assertValidShape} from 'object-shape-tester';
 import {
@@ -37,6 +38,7 @@ function runCommand(workerCommand: Readonly<WorkerCommand>) {
             detached: true,
         });
 
+        /* node:coverage ignore next 6: Node provides a PID for spawned child processes. */
         if (childProcess.pid != undefined) {
             postMessage({
                 type: FromWorkerMessageType.ChildStarted,
@@ -44,6 +46,7 @@ function runCommand(workerCommand: Readonly<WorkerCommand>) {
             });
         }
 
+        /* node:coverage ignore next 12: worker-thread output is covered by ShellWorker integration tests. */
         childProcess.stdout.on('data', (chunk: Buffer) => {
             postMessage({
                 type: FromWorkerMessageType.Stdout,
@@ -63,10 +66,17 @@ function runCommand(workerCommand: Readonly<WorkerCommand>) {
                 error: ensureError(error),
             });
         });
-        childProcess.on('close', (exitCode) => {
+        childProcess.on('close', (exitCode, signal) => {
             postMessage({
                 type: FromWorkerMessageType.Exit,
-                exitCode: exitCode || 0,
+                /**
+                 * A signal-killed child reports a `null` exit code. Use the shell's `128 + signal`
+                 * convention so that a command killed by SIGTERM or SIGKILL is not reported as
+                 * having succeeded. Node always reports exactly one of the two, so the final `0` is
+                 * unreachable and exists only because both parameters are nullable in the types.
+                 */
+                /* node:coverage ignore next 1: Node never reports a null exit code without a signal. */
+                exitCode: exitCode ?? (signal ? 128 + constants.signals[signal] : 0),
             });
             resolve();
         });
@@ -106,6 +116,7 @@ assertedPort.on('message', async (message) => {
         } else {
             throw new Error(`Unexpected to-worker message type: '${String(message.type)}'`);
         }
+        /* node:coverage ignore next 6: worker-thread errors are covered by ShellWorker integration tests. */
     } catch (caught) {
         postMessage({
             type: FromWorkerMessageType.Error,
