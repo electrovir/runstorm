@@ -245,21 +245,32 @@ export class ShellWorker extends ListenTarget<WorkerEvent> {
             return;
         }
 
-        await waitUntil.isTrue(async () => {
-            if (this.isDestroyed) {
-                return true;
-            }
-            // eslint-disable-next-line @typescript-eslint/no-deprecated
-            this.postMessage({
-                type: ToWorkerMessageType.Start,
+        await waitUntil.isTrue(
+            async () => {
+                if (this.isDestroyed || this.exitCode != undefined) {
+                    return true;
+                }
+                // eslint-disable-next-line @typescript-eslint/no-deprecated
+                this.postMessage({
+                    type: ToWorkerMessageType.Start,
 
-                command: this.workerCommand,
-            });
-            await wait({
-                milliseconds: 0,
-            });
-            return this.hasStarted || this.isDestroyed;
-        });
+                    command: this.workerCommand,
+                });
+                await wait({
+                    milliseconds: 0,
+                });
+                return this.hasStarted || this.isDestroyed;
+            },
+            {
+                /**
+                 * Booting a worker thread can take well over the default `waitUntil` timeout when
+                 * many workers start at once on a loaded machine (such as a CI runner).
+                 */
+                timeout: {
+                    minutes: 5,
+                },
+            },
+        );
     }
 
     /** Wait for the worker to exit (if it hasn't already exited). */

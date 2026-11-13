@@ -559,8 +559,12 @@ describe(runCommands.name, () => {
                 {
                     disableSummary: true,
                     loggers: {
-                        stderr: () => undefined,
-                        stdout: () => undefined,
+                        stderr() {
+                            return undefined;
+                        },
+                        stdout() {
+                            return undefined;
+                        },
                     },
                     shell:
                         process.platform === 'win32'
@@ -657,8 +661,12 @@ describe(runCommands.name, () => {
                     disableChildProcessWatchdog: true,
                     disableSummary: true,
                     loggers: {
-                        stderr: () => undefined,
-                        stdout: () => undefined,
+                        stderr() {
+                            return undefined;
+                        },
+                        stdout() {
+                            return undefined;
+                        },
                     },
                 },
             ),
@@ -712,7 +720,9 @@ describe(runCommands.name, () => {
                             ready.resolve();
                         }
                     },
-                    stderr: () => undefined,
+                    stderr() {
+                        return undefined;
+                    },
                 },
             },
         );
@@ -758,7 +768,9 @@ describe(runCommands.name, () => {
                             started.resolve();
                         }
                     },
-                    stderr: () => undefined,
+                    stderr() {
+                        return undefined;
+                    },
                 },
             },
         );

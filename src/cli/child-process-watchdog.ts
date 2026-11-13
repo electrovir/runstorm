@@ -33,6 +33,7 @@ export function runChildProcessWatchdogCli(
         },
         {
             binName: 'runstorm-child-process-watchdog',
+            packageJsonPath: undefined,
             commandDescription: 'Stops detached RunStorm commands after their parent exits.',
             importMeta,
         },

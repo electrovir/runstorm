@@ -1,5 +1,6 @@
 import {ArgValueType, FlagRequirement, parseArgs} from 'cli-vir';
 import {cpus} from 'node:os';
+import {join} from 'node:path';
 import {allColorKeys} from '../run-commands/color-key.js';
 import {createCommands} from '../run-commands/command.js';
 import {KillOn, type RunCommandOptions, runCommands} from '../run-commands/run-commands.js';
@@ -83,6 +84,7 @@ export async function runCli(
         },
         {
             binName: 'runstorm',
+            packageJsonPath: join(import.meta.dirname, '..', '..', 'package.json'),
             importMeta,
             commandDescription: 'Run multiple commands in parallel in individual threads.',
         },

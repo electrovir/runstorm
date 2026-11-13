@@ -89,6 +89,7 @@ describe(ShellWorker.name, () => {
             // eslint-disable-next-line @typescript-eslint/no-deprecated
             worker.postMessage({
                 // @ts-expect-error: wrong message type
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-assignment
                 type: 'wrong',
             });
 
